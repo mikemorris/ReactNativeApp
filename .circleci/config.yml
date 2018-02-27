@@ -56,9 +56,19 @@ jobs:
       - restore_cache:
           key: gradle-{{ checksum "build.gradle" }}-{{ checksum  "app/build.gradle" }}
       - run:
+          name: "bundleReleaseJsAndAssets"
+          command: |
+            ../node_modules/.bin/react-native bundle \
+              --max-workers 1 \
+              --platform android \
+              --dev false \
+              --entry-file index.js \
+              --bundle-output app/src/main/assets/index.android.bundle \
+              --assets-dest app/src/main/res/
+      - run:
           name: "Build Android app"
           command: |
-            bundle exec fastlane android build release:true
+            bundle exec fastlane android build release:true bundle:false
       - save_cache:
           key: gradle-{{ checksum "build.gradle" }}-{{ checksum  "app/build.gradle" }}
           paths:

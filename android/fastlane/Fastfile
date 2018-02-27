@@ -26,9 +26,11 @@ platform :android do
   lane :build do
     clean
     build_type = (options[:release] ? "Release" : "Debug")
+    flags = (defined?(options[:bundle]) and options[:bundle] == false ? "-x bundleReleaseJsAndAssets" : "")
     gradle(
       task: "assemble",
-      build_type: build_type
+      build_type: build_type,
+      flags: flags
     )
   end
 
