@@ -1,0 +1,77 @@
+version: 2
+jobs:
+  node_modules:
+    docker:
+      - image: circleci/node:8
+    steps:
+      - checkout
+      - restore_cache:
+          key: npm-{{ checksum "package-lock.json" }}
+      - run:
+          name: "npm install"
+          command: |
+            npm install
+      - save_cache:
+          key: npm-{{ checksum "package-lock.json" }}
+          paths:
+            - node_modules
+      - run: npm test
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - node_modules
+
+  bundle:
+    docker:
+      - image: circleci/ruby:2.4.3
+    environment:
+      - BUNDLE_PATH: ~/project/vendor/bundle
+    steps:
+      - checkout
+      - restore_cache:
+          key: bundle-{{ checksum "Gemfile.lock" }}
+      - run: bundle check || bundle install
+      - save_cache:
+          key: bundle-{{ checksum "Gemfile.lock" }}
+          paths:
+            - ~/project/vendor/bundle
+      - persist_to_workspace:
+          root: ~/project
+          paths:
+            - vendor/bundle
+
+  android:
+    working_directory: ~/project/android
+    docker:
+      - image: circleci/android:api-27-node8-alpha
+    environment:
+      - BUNDLE_PATH: ~/project/vendor/bundle
+    steps:
+      - checkout:
+          path: ~/project
+      - attach_workspace:
+          at: ~/project
+      # Rebuild gems with native extensions
+      - run: bundle check || bundle install
+      - restore_cache:
+          key: gradle-{{ checksum "build.gradle" }}-{{ checksum  "app/build.gradle" }}
+      - run:
+          name: "Build Android app"
+          command: |
+            bundle exec fastlane android build
+      - save_cache:
+          key: gradle-{{ checksum "build.gradle" }}-{{ checksum  "app/build.gradle" }}
+          paths:
+            - ~/.gradle/caches
+            - ~/.gradle/wrapper
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - node_modules
+      - bundle
+      - android:
+          requires:
+            - node_modules
+            - bundle
